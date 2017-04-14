@@ -18,10 +18,13 @@ function checkconf
 [[ -z "$serveruser" || -z "$server" || -z "$serverdir" ]]  && 
     fail "Wrong server configuration $1 with user: $serveruser server: $server and dir $serverdir";
 "$sshbin" "$serveruser@$server" "[[ -d \"$serverdir\" ]]" || fail "$serverdir does not exist on $server"
+touch "$arensynctempdir/test" || fail "Tempdir $arensynctempdir isn't writable."
+"$gpgbin" -r "$email" --encrypt "$arensynctempdir/test" || { rm "$arensynctempdir/test"; fail "gpg not working - failed to encrypt"}
+rm "$arensynctempdir/test" "$arensynctempdir/test.gpg"
 
 }
 
-function doupload
+function archiveencrypt
 {
 "$sshbin" "$serveruser@$server" "f=($serverdir/*.lst); ls ${f[@]} | sort -r | xargs cat | sed 's/  / /g' |  sort -k2,2 -u" > serverfiles
 find "$workdir" -type f -name "*" -print0 | xargs -0 -n 1 -P 10 sh -c 'sha256sum "$1"' sh | sed 's/  / /g' > localfiles
@@ -30,15 +33,19 @@ rm localfiles serverfiles
 [[ -z toupload ]] && fail "Nothing new upload!"
 archive="`date +archive%Y%m%d_%H%M%S.tar.gz`"
 archivepath="$arensynctempdir/$archive"
+echo "$toupload" > "$archivepath.lst"
 tar czvf "$archivepath" "$toupload" || fail "Couldn't create archive!"
-gpg -r "$email" --encrypt "$archivepath"
-gpg --sign-with "$email" --sign "$archivepath.gpg" || fail "Couldn't sign archive!"
-gpg -r "$email" --encrypt "$archivepath.gpg.sig"
+"$gpgbin" -r "$email" --encrypt "$archivepath"
+sha256sum "$archivepath.gpg" > "$archivepath.gpg.sum"
 rm "$archivepath"
-scp "$archivepath.gpg" "$arcivepath.gpg.sig.gpg" "$serveruser@$server:$serverpath/"
-
 }
 
+function upload
+{
+echo "$archivepath" > "$arensynctempdir/.uploading"
+"$rsyncbin" "$archivepath.{gpg,gpg.sum,lst}" "$serveruser@$server:$serverpath/" || fail "Error while uploading"
+rm "$arensynctempdir/.uploading"
+}
 
 if [[ -z "$1" ]]; then
 conff=(${HOME}/.config/arensync/*.conf)
