@@ -1,6 +1,16 @@
 import os, sys, hashlib
 from functools import partial
-from multiprocessing import Pool, cpu_count
+try:
+    from multiprocessing import Pool, cpu_count
+    p = Pool()
+except ImportError:
+    class Pool:
+        def __init__(self, *args):
+            pass
+        def map(self, fcn, arr):
+            return map(fcn, arr)
+    def cpu_count():
+        return 1
 
 #help(pool.map)
 #exit()
