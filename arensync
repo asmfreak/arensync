@@ -6,19 +6,20 @@ function readconf
 checkconf "$1"
 }
 
+function log
+{
+echo "\e[38;5;154m$1\e[0m"
+}
+
 function fail
 {
-echo "$1" 1>&2;
+echo "\e[38;5;196m$1\e[0m" 1>&2;
 exit 1
 }
 
 function checkconf
 {
-    _usenoxargs=''
-    if ! echo | xargs ls >/dev/null; then
-        echo 'xargs does not work!'
-        _usenoxargs=1
-    fi
+    log "Checking configuration sanity."
     [[ -z "$workdir" ]] && fail "$workdir does not exist!"
     [[ -z "$serveruser" || -z "$server" || -z "$serverdir" ]]  && 
         fail "Wrong server configuration $1 with user: $serveruser server: $server and dir $serverdir";
@@ -27,37 +28,49 @@ function checkconf
     $gpgbin -r "$gpgemail" --encrypt "$arensynctempdir/test" >/dev/null || { rm "$arensynctempdir/test"; fail "gpg not working - failed to encrypt simple file. Please check configuration"}
     $rsyncbin "$arensynctempdir/test" "$arensynctempdir/test.gpg" "$serveruser@$server:$serverdir" >/dev/null && "$sshbin" "$serveruser@$server" "rm $serverdir/test $serverdir/test.gpg" >/dev/null || fail "rsync $rsyncbin does not work"
     rm "$arensynctempdir/test" "$arensynctempdir/test.gpg"
+    log "Sane configuration."
 }
 
 function archiveencrypt
 {
-    "$sshbin" "$serveruser@$server" "f=($serverdir/*.lst); ls \${f[@]} | sort -r | xargs cat | sed 's/  / /g' |  sort -k2,2 -u" > serverfiles
-    if [[ -z "$_usenoxargs" ]]; then
-        find "$workdir" -type f -name "*" -print0 | xargs -0 -n 1 -P 10 sh -c 'sha256sum "$1"' sh | sed 's/  / /g' > localfiles
-    else
-        find "$workdir" -type f -name "*" -exec sha256sum {} + | sed 's/  / /g' > localfiles
-    fi
+    log "Finding changed files"
+    $sshbin "$serveruser@$server" "f=($serverdir/*.lst); ls \${f[@]} | sort -r | xargs cat | sed 's/  / /g' |  sort -k2,2 -u" > serverfiles
+    #if [[ -z "$_usenoxargs" ]]; then
+    #    find "$workdir" -type f -name "*" -print0 | xargs -0 -n 1 -P 10 sh -c 'sha256sum "$1"' sh | sed 's/  / /g' > localfiles
+    #else
+    #    find "$workdir" -type f -name "*" -exec sha256sum {} + | sed 's/  / /g' > localfiles
+    #fi
+    python "$arensd/findhash.py" "$workdir" | sed 's/  / /g' > localfiles
     toupload=$(sort localfiles serverfiles serverfiles | uniq -u)
     rm localfiles serverfiles
     [[ -z "$toupload" ]] && fail "Nothing new to upload!"
+    log "New and/or modified files since last sync:":
+    echo "$toupload" | sed 's/^[^ ]* //g'
     archive="`date +archive%Y%m%d_%H%M%S.tar.gz`"
     archivepath="$arensynctempdir/$archive"
     echo "$toupload" > "$archivepath.lst"
     toupload=(`echo "$toupload" | sed 's/^[^ ]* //g'`)
-    tar czvf "$archivepath" "${toupload[@]}" ||  fail "Couldn't create archive!"
+    log "Creating archive"
+    tar czvf "$archivepath" -C "$workdir" "${toupload[@]}" ||  fail "Couldn't create archive!"
     "$gpgbin" -r "$gpgemail" --encrypt "$archivepath"
     (cd "$arensynctempdir"; sha256sum "$archive.gpg" > "$archivepath.gpg.sum")
     rm "$archivepath"
+    log "Archive created"
 }
 
 function upload
 {
+    log "Uploading"
     echo ". \"$1\"" > "$arensynctempdir/.uploading"
     echo "archivepath=\"$archivepath\"" >> "$arensynctempdir/.uploading"
-    "$rsyncbin" "$archivepath."{gpg,gpg.sum,lst} "$serveruser@$server:$serverdir" || fail "Error while uploading"
+    $rsyncbin "$archivepath."{gpg,gpg.sum,lst} "$serveruser@$server:$serverdir" || fail "Error while uploading"
     archive="`basename \"$archivepath\"`"
-    "$sshbin" "$serveruser@$server" "cd '$serverdir'; sha256sum -c '$archive.gpg.sum'"
+    log "Checking everything in place"
+    $sshbin "$serveruser@$server" "cd '$serverdir'; sha256sum -c '$archive.gpg.sum'" || fail "Checksum mismatch"
     rm "$arensynctempdir/.uploading"
+    log "Removing local archives"
+    rm "$archivepath.gpg" "$archivepath.lst" "$archivepath.gpg.sum"
+    log "Success"
 }
 
 function algo
@@ -74,12 +87,12 @@ function algo
 
 function usage
 {
-    echo "$0 -- ARchive ENcrypt Sync."
-    echo
-    echo "Usage:"
-    echo "   arensync [CONFIG]"
-    echo "      CONFIG - config file to use, if unspecified,"
-    echo "               uses ~/.config/arensync/*.conf files"
+    log "$0 -- ARchive ENcrypt Sync."
+    log
+    log "Usage:"
+    log "   arensync [CONFIG]"
+    log "      CONFIG - config file to use, if unspecified,"
+    log "               uses ~/.config/arensync/*.conf files"
 
 }
 
