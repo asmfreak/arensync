@@ -35,11 +35,6 @@ function archiveencrypt
 {
     log "Finding changed files"
     $sshbin "$serveruser@$server" "f=($serverdir/*.lst); ls \${f[@]} | sort -r | xargs cat | sed 's/  / /g' |  sort -k2,2 -u" > serverfiles
-    #if [[ -z "$_usenoxargs" ]]; then
-    #    find "$workdir" -type f -name "*" -print0 | xargs -0 -n 1 -P 10 sh -c 'sha256sum "$1"' sh | sed 's/  / /g' > localfiles
-    #else
-    #    find "$workdir" -type f -name "*" -exec sha256sum {} + | sed 's/  / /g' > localfiles
-    #fi
     python "$arensd/findhash.py" "$workdir" | sed 's/  / /g' > localfiles
     toupload=$(sort localfiles serverfiles serverfiles | uniq -u)
     rm localfiles serverfiles
@@ -96,11 +91,15 @@ function usage
 
 }
 
-arensd="`dirname \"$0\"`"
+arensbin="$0"
+if [[ -h "$0" ]]; then
+  arensbin="`readlink \"$0\"`"
+fi
+arensd="`dirname \"$arensbin\"`"
 if [[ -z "$1" ]]; then
     conff=(${HOME}/.config/arensync/*.conf)
     for f in "${conff[@]}"; do
-        algo "$f"
+        "$arensbin" "$f"
     done;
 elif [[ "$1" == "--help" || "$1" == "-h" ]]; then
     usage
