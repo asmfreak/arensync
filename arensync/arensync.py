@@ -19,11 +19,13 @@ from operator import itemgetter as by
 from itertools import groupby, chain
 import os, sys, hashlib
 from functools import partial
+from fnmatch import fnmatch
 import tempfile
+
+from . import ConfiguredApplication, OptionalFile
 from tqdm import tqdm
 from plumbum import local, SshMachine, cli, colors, FG
 from plumbum.cli.terminal import Progress as P
-from pprint import pprint
 
 # patch multiprocessing on weird platfoms (Android)
 try:
@@ -38,24 +40,7 @@ except ImportError:
     def cpu_count():
         return 1
 
-def get_from(config, obj, opt):
-    try:
-        setattr(obj, opt, config[opt])
-    except KeyError:
-        pass
 
-def get_into(config, obj, opt, default):
-    setattr(obj, opt, config.get(opt, default))
-
-cli.Config.get_into = get_into
-cli.Config.get_from = get_from
-@cli.Predicate
-def OptionalFile(f):
-    f = local.path(f)
-    if f.exists() and f.is_file():
-        return f
-    else:
-        return None
 
 @contextmanager
 def touch_detach(path):
@@ -92,59 +77,18 @@ def non_repetative(y):
     if len(y)==0:
        return y[0]
 
-# TODO: debug sort&uniq optimization
 def diff_files(arr1, arr2):
     temp = sorted(chain(arr1, arr2, arr2), key=by("file"))
     return uuniq(temp, by("file"))
-    #return [x for x in arr1 if x not in arr2]
 
-class arensync(cli.Application):
-    defconfig = cli.SwitchAttr(
-        "--default-config", cli.ExistingFile,
-        default=local.path("~/.config/arensync/config"),
-        help="default config filename",
-        envname="ARENSYNC_DEFAULTCONFIG"
-    )
-
-    configdir = cli.SwitchAttr(
-        "--configdir", cli.ExistingDirectory,
-        default=local.path("~/.config/arensync/"),
-        help="directory with configs",
-        envname="ARENSYNC_CONFIGDIR"
-    )
-
-    def default_config(self, config_name):
-        with cli.Config(config_name) as config:
-            config.get_into(self, "workdir", local.cwd)
-            config.get_into(self, "ignorefile", "")
-            config.get_into(self, "user", getpass.getuser())
-            config.get_into(self, "gpgemail", self.user + "@" + local['hostname']()[:-1])
-            config.get_into(self, "serveruser", "")
-            config.get_into(self, "server", "")
-            config.get_into(self, "serverdir", "")
-            config.get_into(self, "sshbin", "ssh")
-            config.get_into(self, "gpgbin", "gpg")
-            config.get_into(self, "scpbin", "scp")
-            config.get_into(self, "tarbin", "tar -v")
-            config.get_into(self, "tempdir", "/tmp")
-
-    def config(self, config_name):
-        with cli.Config(config_name) as config:
-            config.get_from(self, "workdir")
-            config.get_from(self, "ignorefile")
-            config.get_from(self, "user")
-            config.get_from(self, "gpgemail")
-            config.get_from(self, "serveruser")
-            config.get_from(self, "server")
-            config.get_from(self, "serverdir")
-            config.get_from(self, "sshbin")
-            config.get_from(self, "gpgbin")
-            config.get_from(self, "scpbin")
-            config.get_from(self, "tempdir")
-
+class arensync(ConfiguredApplication):
     def check_config(self):
         self.workdir = cli.ExistingDirectory(self.workdir)
         self.ignorefile = OptionalFile(self.ignorefile)
+        self.ignored = None
+        if self.ignorefile:
+            with open(self.ignorefile) as f:
+                self.ignored = f.read()
         self.tempdir = cli.ExistingDirectory(self.tempdir)
         test = (self.tempdir / "test")
         testgpg = (self.tempdir / "test.gpg")
@@ -174,6 +118,15 @@ class arensync(cli.Application):
         self.remcat = self.remote["cat"]
         self.pool = Pool(cpu_count())
 
+    def filter_ignored(self, fl):
+        if self.ignored is None:
+            return fl
+        for f,ff in fl:
+            for i in self.ignored:
+                if fnmatch(f, i):
+                    continue
+            yield f,ff
+
     def get_server_files(self):
         if(len(self.remote["ls"](self.serverdir)[:-1].split("\n"))<=1):
             serverfiles = []
@@ -189,11 +142,12 @@ class arensync(cli.Application):
 
     def get_local_files(self):
         localfiles = []
-        for dir, dirs, files in os.walk(self.workdir):
+        for dir, dirs, files in tqdm(os.walk(self.workdir)):
             ldir = dir.replace(self.workdir, ".")
             localfiles.extend(self.pool.map(
                 hash,
-                ((os.path.join(dir, f), os.path.join(ldir, f))  for f in files)
+                tuple(self.filter_ignored((os.path.join(dir, f), os.path.join(ldir, f))
+                for f in files))
             ))
         return localfiles
 
