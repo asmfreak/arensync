@@ -1,1 +1,3 @@
 *__pycache__*
+.tox
+arensync.egg-info
