@@ -16,10 +16,11 @@
 """
 # pylint: disable=C0111,C0112,C1801,W0201,no-member,invalid-name
 # pylint: disable=too-few-public-methods, too-many-instance-attributes
+import os
 import getpass
 from contextlib import contextmanager
 from plumbum import local, cli, SshMachine, colors
-
+from .i18n import N_
 # patch multiprocessing on weird platfoms (Android)
 try:
     from multiprocessing import Pool, cpu_count
@@ -156,11 +157,10 @@ class ConfiguredApplication(cli.Application):
         else:
             configs = [optconfig]
         for config in configs:
-            print("Using {}".format(colors.green | config))  # noqa: Q000
+            print(N_("Using {}").format(colors.green | os.path.basename(config)))  # noqa: Q000
             self.default_config(self.defconfig)
             self.config(config)
-            print("Checking configuration sanity")  # noqa: Q000
+            print(N_("Checking configuration sanity"))  # noqa: Q000
             self.check_config()
-            print("Finding chaged files and uploading to server")  # noqa: Q000
             self.algorithm()
-            print("Success")  # noqa: Q000
+            print(N_("Success"))  # noqa: Q000

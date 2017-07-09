@@ -24,7 +24,7 @@ import tempfile
 
 from tqdm import tqdm
 from plumbum import local, colors, FG
-from . import ConfiguredApplication
+from . import ConfiguredApplication, N_
 
 
 def blockreader(f, block_size=4096):
@@ -103,13 +103,14 @@ class arensync(ConfiguredApplication):
         return localfiles
 
     def algorithm(self):
+        print(N_("Finding changed files and uploading to server"))  # noqa: Q000
         serverfiles = self.get_server_files()
         localfiles = self.get_local_files()
         to_upload = diff_files(localfiles, serverfiles)
         for x in to_upload:
             print(colors.green | x['file'])
         if len(to_upload) == 0:
-            print(colors.red | "Files unchanged. Nothing new to upload.")  # noqa: Q000
+            print(colors.red | N_("Files unchanged. Nothing new to upload."))  # noqa: Q000
             return
         archive = local['date']['+archive%Y%m%d_%H%M%S.tar.gz']()[:-1]
         archivepath = self.tempdir / archive

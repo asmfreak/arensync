@@ -15,13 +15,14 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 # pylint: disable=C0111,C0112,C1801,W0201,C0330,no-member,invalid-name
+import os
 import datetime
 import tempfile
 from operator import itemgetter
 from itertools import groupby as uniq
 
 from plumbum import colors
-from . import ConfiguredApplication
+from . import ConfiguredApplication, N_
 
 strptime = datetime.datetime.strptime
 
@@ -39,6 +40,7 @@ class lideex(ConfiguredApplication):
         self.extract = self.tar['xzvf', '-', '-C', self.workdir, '-T']
 
     def algorithm(self):
+        print(N_("Finding newest files on server"))  # noqa: Q000
         files = flatten([[{
             'hash': y[0:64].lstrip(' '),
             'file': y[65:].rstrip(' '),
@@ -59,6 +61,10 @@ class lideex(ConfiguredApplication):
                 ),
                 itemgetter('archive'))
         }
+        max_fcount = max([len(str(len(files))) for _, files in archived_files.items()])
+        ok = N_("OK")  # noqa: Q000
+        fcount_width = max(len(ok), max_fcount * 2 + 1) + 2
+        fcount_width = fcount_width if fcount_width % 2 == 0 else fcount_width + 1
         for archive, compressed in archived_files.items():
             with tempfile.NamedTemporaryFile(mode='w') as f:
                 f.write('\n'.join(compressed))
@@ -67,20 +73,23 @@ class lideex(ConfiguredApplication):
                     self.remcat[archive + '.gpg'] |
                     self.decrypt | self.extract[f.name])
                 job = job.popen()
-                fcount = len(compressed)
+                archive = os.path.basename(archive)
+                fccount = fcount = len(compressed)
                 for line in job.stdout:
                     line = line[:-1].decode('utf-8')
                     if line in compressed:
-                        fcount -= 1
-                        fcount_ = '{:06d}'.format(fcount)
+                        fccount -= 1
+                        status = '{}/{}'.format(fccount, fcount).center(fcount_width, ' ')
                         print(
-                            "Files from {1} to unpack [{0}]".format(  # noqa: Q000
-                                colors.red | fcount_, colors.blue | archive),
+                            N_("Files to unpack from {1} [{0}]").format(  # noqa: Q000
+                                colors.red | status,
+                                colors.blue | archive),
                             end='\r')
-                if fcount == 0:
+                if fccount == 0:
                     print(
-                        "Files from {} unpacked  [  {}  ]".format(  # noqa: Q000
-                            colors.blue | archive, colors.green | "OK"))  # noqa: Q000
+                        N_("Files unpacked  from {1} [{0:}]").format(  # noqa: Q000
+                            colors.green | ok.center(fcount_width, ' '),
+                            colors.blue | archive))
                 job.wait()
 
 

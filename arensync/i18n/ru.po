@@ -1,0 +1,58 @@
+# Russian translations for arensync package
+# Русские переводы для пакета arensync.
+# Copyright (C) 2017 Pavel Pletenev
+# This file is distributed under the same license as the arensync package.
+# Pavel Pletenev <cpp.create@gmail.com>, 2017.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2017-07-09 18:00+0200\n"
+"PO-Revision-Date: 2017-07-09 17:46+0200\n"
+"Last-Translator: Pavel Pletenev <cpp.create@gmail.com>\n"
+"Language-Team: Russian\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
+"%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+#: arensync/arensync.py:106
+msgid "Finding changed files and uploading to server"
+msgstr "Поиск изменённых файлов и загрузка на сервер"
+
+#: arensync/arensync.py:113
+msgid "Files unchanged. Nothing new to upload."
+msgstr "Файлы не изменены. Загружать нечего."
+
+#: arensync/__init__.py:159
+msgid "Using {}"
+msgstr "Используется {}"
+
+#: arensync/__init__.py:162
+msgid "Checking configuration sanity"
+msgstr "Проверка правильности конфигурации"
+
+#: arensync/__init__.py:165
+msgid "Success"
+msgstr "Успешно"
+
+#: arensync/lideex.py:43
+msgid "Finding newest files on server"
+msgstr "Выбираем новейшие файлы с сервера"
+
+#: arensync/lideex.py:65
+msgid "OK"
+msgstr "УСПЕШНО"
+
+#: arensync/lideex.py:84
+#, python-brace-format
+msgid "Files to unpack from {1} [{0}]"
+msgstr "Файлов распаковать из {1} [{0}]"
+
+#: arensync/lideex.py:90
+#, python-brace-format
+msgid "Files unpacked  from {1} [{0:}]"
+msgstr "Файлы paспакованы из {1}  [{0:}]"

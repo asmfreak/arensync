@@ -47,6 +47,12 @@ if __name__ == '__main__':
             'tqdm'
         ],
 
+        package_data={
+            'arensync': [
+                'i18n/*/LC_MESSAGES/*.mo'
+            ]
+        },
+
         classifiers=[
             'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
             'Development Status :: 4 - Beta',

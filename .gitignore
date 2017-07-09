@@ -1,3 +1,5 @@
 *__pycache__*
 .tox
 arensync.egg-info
+*.pot
+arensync/i18n/new_ru.po
