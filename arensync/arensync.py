@@ -17,6 +17,7 @@
 # pylint: disable=C0111,C0112,C1801,W0201,C0330,no-member,invalid-name
 import os
 import hashlib
+from pprint import pprint
 from operator import itemgetter as by
 from itertools import groupby, chain
 from fnmatch import fnmatch
@@ -60,19 +61,22 @@ def non_repetative(y):
 
 
 def diff_files(arr1, arr2):
-    temp = sorted(chain(arr1, arr2, arr2), key=by('file'))
-    return uuniq(temp, by('file'))
+    #temp = sorted(chain(arr1, arr2, arr2), key=by('file'))
+    #return uuniq(temp, by('file'))
+    return [x for x in arr1 if x not in arr2]
 
 
 class arensync(ConfiguredApplication):
     def filter_ignored(self, fl):
         if self.ignored is None:
             return fl
+        a = []
         for f, ff in fl:
             for i in self.ignored:
                 if fnmatch(f, i):
                     continue
-            yield f, ff
+            a.append((f, ff))
+        return a
 
     def get_server_files(self):
         if len(self.remote['ls'](self.serverdir)[:-1].split('\n')) <= 1:
@@ -93,13 +97,10 @@ class arensync(ConfiguredApplication):
         localfiles = []
         for fdir, _, files in tqdm(os.walk(self.workdir)):
             ldir = fdir.replace(self.workdir, '.')
-            localfiles.extend(
-                self.pool.map(
-                    hash_file,
-                    tuple(
-                        self.filter_ignored(
-                            (os.path.join(fdir, f), os.path.join(ldir, f))
-                            for f in files))))
+            nonignored = list(self.filter_ignored(
+                (os.path.join(fdir, f), os.path.join(ldir, f))
+                for f in files))
+            localfiles.extend(self.pool.map(hash_file, nonignored))
         return localfiles
 
     def algorithm(self):
