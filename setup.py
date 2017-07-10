@@ -23,7 +23,7 @@ import setuptools
 if __name__ == '__main__':
     setuptools.setup(
         name='arensync',
-        version='0.1',
+        version='0.1.1',
         url='https://github.com/ASMfreaK/arensync',
         license='GPLv3',
         author='Pavel Pletenev',
