@@ -18,8 +18,8 @@
 import os
 import hashlib
 # from pprint import pprint
-# from operator import itemgetter as by
-from itertools import groupby, chain
+from operator import itemgetter as by
+from itertools import groupby  # , chain
 from fnmatch import fnmatch
 import tempfile
 
