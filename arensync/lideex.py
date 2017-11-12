@@ -46,7 +46,7 @@ class lideex(ConfiguredApplication):
             'file': y[65:].rstrip(' '),
             'archive': x[:-4],
             'date': strptime(
-                x.split('archive')[-1].split('.tar')[0],
+                x.split('archive')[-1].split('_N')[0],
                 '%Y%m%d_%H%M%S')}
             for y in self.remcat(x).split('\n') if y != '']
             for x in self.remfind().split('\n') if x != ''])

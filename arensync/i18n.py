@@ -20,7 +20,7 @@ import pkg_resources
 
 def install(package_name='arensync'):
     'finds and installs translation for package'
-    # pylint: disable=undefined-loop-variable
+    localedir = None
     for localedir in pkg_resources.resource_filename(package_name, 'i18n'), None:
         localefile = gettext.find(package_name, localedir)
         if localefile:

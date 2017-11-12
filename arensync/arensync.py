@@ -22,6 +22,7 @@ from operator import itemgetter as by
 from itertools import groupby, chain
 from fnmatch import fnmatch
 import tempfile
+import time
 
 from tqdm import tqdm
 from plumbum import local, colors, FG
@@ -108,17 +109,30 @@ class arensync(ConfiguredApplication):
         serverfiles = self.get_server_files()
         localfiles = self.get_local_files()
         to_upload = diff_files(localfiles, serverfiles)
-        for x in to_upload:
-            print(colors.green | x['file'])
         if len(to_upload) == 0:
             print(colors.red | N_("Files unchanged. Nothing new to upload."))  # noqa: Q000
             return
-        archive = local['date']['+archive%Y%m%d_%H%M%S.tar.gz']()[:-1]
-        archivepath = self.tempdir / archive
-        archivelist = self.tempdir / (archive + '.lst')
-        localarchivegpg = archive + '.gpg'
+        package_size = 0
+        packages = [list()]
+        for x in to_upload:
+            packages[-1].append(x)
+            package_size += local.path(self.workdir / x['file']).stat().st_size
+            if package_size >= self.max_package_size:
+                package_size = 0
+                packages.append(list())
+            print(colors.green | x['file'])
+        archive = local['date']['+archive%Y%m%d_%H%M%S_N{index}.tar.gz']()[:-1]
+        for package_index, to_upload in enumerate(packages):
+            self.do_arensync(archive, package_index, to_upload)
+
+    def do_arensync(self, archive, package_index, to_upload):
+        archive_name = archive.format(index=package_index)
+        print(colors.green | archive_name)
+        archivepath = self.tempdir / archive_name
+        archivelist = self.tempdir / (archive_name + '.lst')
+        localarchivegpg = archive_name + '.gpg'
         archivegpg = self.tempdir / localarchivegpg
-        archivegpgsum = self.tempdir / (archive + '.gpg.sum')
+        archivegpgsum = self.tempdir / (archive_name + '.gpg.sum')
         with open(archivelist, 'w') as f:
             f.write('\n'.join([
                 '{hash} {file}'.format(**x) for x in to_upload]))
@@ -135,7 +149,7 @@ class arensync(ConfiguredApplication):
         self.remote.upload(archivegpg, self.serverdir)
         self.remote.upload(archivegpgsum, self.serverdir)
         with self.remote.cwd(self.serverdir):
-            self.remote['sha256sum']('-c', archive + '.gpg.sum')
+            self.remote['sha256sum']('-c', archive_name + '.gpg.sum')
         archivelist.delete()
         archivegpg.delete()
         archivegpgsum.delete()

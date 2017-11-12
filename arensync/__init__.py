@@ -99,6 +99,7 @@ class ConfiguredApplication(cli.Application):
             config.get_into(self, 'scpbin', 'scp')
             config.get_into(self, 'tarbin', 'tar -v')
             config.get_into(self, 'tempdir', '/tmp')
+            config.get_into(self, 'max_package_size', '10000')
 
     def config(self, config_name):
         with cli.Config(config_name) as config:
@@ -113,6 +114,8 @@ class ConfiguredApplication(cli.Application):
             config.get_from(self, 'gpgbin')
             config.get_from(self, 'scpbin')
             config.get_from(self, 'tempdir')
+            config.get_from(self, 'max_package_size')
+            self.max_package_size = int(self.max_package_size)
 
     def check_config(self):
         self.workdir = cli.ExistingDirectory(self.workdir)
