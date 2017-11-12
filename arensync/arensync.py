@@ -17,9 +17,9 @@
 # pylint: disable=C0111,C0112,C1801,W0201,C0330,no-member,invalid-name
 import os
 import hashlib
-from pprint import pprint
+# from pprint import pprint
 from operator import itemgetter as by
-from itertools import groupby, chain
+from itertools import groupby  # , chain
 from fnmatch import fnmatch
 import tempfile
 import time
@@ -62,8 +62,8 @@ def non_repetative(y):
 
 
 def diff_files(arr1, arr2):
-    #temp = sorted(chain(arr1, arr2, arr2), key=by('file'))
-    #return uuniq(temp, by('file'))
+    # temp = sorted(chain(arr1, arr2, arr2), key=by('file'))
+    # return uuniq(temp, by('file'))
     return [x for x in arr1 if x not in arr2]
 
 
